@@ -1,6 +1,6 @@
-🛡️ Honeypot Auditd Wazuh Lab
+# 🛡️ Honeypot Auditd Wazuh Lab
 
-This project demonstrates how to deploy a **high-interaction honeypot** on **Kali Linux** using `auditd` and **Wazuh**.  
+This project demonstrates how to deploy a **high-interaction honeypot** on **Kali Linux** using `auditd` and **Wazuh** for **real-time detection and alerting**.  
 It includes bait file monitoring, Wazuh log analysis, and attacker activity tracing.
 
 ---
@@ -34,15 +34,6 @@ It includes bait file monitoring, Wazuh log analysis, and attacker activity trac
 
 ---
 
-## 🛠️ Recent Updates
-
-**2025-08-13:**  
-- Fixed Wazuh agent registration issue by importing the correct key from the manager  
-- Verified dashboard connectivity  
-- Confirmed agent is actively reporting to the manager
-
----
-
 ## 📜 Future Improvements
 
 - Integrate **Kibana dashboards** for visual log analysis  
@@ -55,6 +46,8 @@ It includes bait file monitoring, Wazuh log analysis, and attacker activity trac
 
 🚨 Bait file accessed on kali at Tue 05 Aug 2025 14:35:15 WAT!
 
+
+
 ---
 
 ## 📌 Disclaimer
@@ -66,3 +59,4 @@ Do **not** deploy in a production environment without proper segmentation and co
 ## 📚 References
 - [auditd Manual](https://linux.die.net/man/8/auditd)  
 - [Wazuh Documentation](https://documentation.wazuh.com/)  
+
