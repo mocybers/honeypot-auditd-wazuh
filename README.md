@@ -1,99 +1,129 @@
-# 🛡️ Honeypot Auditd Wazuh Lab
+# Honeypot + Auditd + Wazuh + Telegram Alerts
 
-This project demonstrates how to deploy a **high-interaction honeypot** on **Kali Linux** using `auditd` and **Wazuh**.  
-It includes bait file monitoring, Wazuh log analysis, and attacker activity tracing — all integrated with **real-time Telegram alerts**.
-
----
-
-## 📂 Lab Environment
-
-**Virtualization Platform:** Oracle VirtualBox  
-**VMs Used:**
-- **Kali Linux** – Honeypot host + Wazuh Agent
-- **Ubuntu** – (Planned) host for future log analysis
-- **Metasploitable2** – Attacker simulation
-- **Wazuh Server** – SIEM, alerting, and log storage
+A high-interaction honeypot setup on Kali Linux that uses `auditd` to monitor bait files, sends **real-time Telegram alerts**, and integrates with **Wazuh SIEM** for centralized security monitoring.
 
 ---
 
-## 🔑 Key Components
-
-- **auditd** – Linux auditing tool for file and system event monitoring  
-- **Bait Files** – Decoy sensitive files (e.g., `.aws_key`, `.flag.txt`) to lure attackers  
-- **Wazuh Agent & Manager** – Log collection, correlation, and alerting  
-- **Real-Time Alerts** – Telegram/email notifications for bait file access  
-
----
-
-## 🚀 Features
-
-- Detects unauthorized file access instantly  
-- Sends **real-time Telegram alerts** with timestamp and hostname  
-- Forwards security logs to **Wazuh SIEM** for centralized analysis  
-- Supports attacker IP tracking and investigation
+## 📌 Features
+- **Auditd Monitoring** – Tracks any access to sensitive bait files.
+- **Real-time Telegram Alerts** – Instant notifications when a bait file is accessed.
+- **Wazuh Integration** – Forward logs to Wazuh for centralized alerting and incident analysis.
+- **Secure UFW Rules** – Blocks attacker access but allows system updates, HTTPS, and Wazuh agent communication.
 
 ---
 
-## 🛠️ Recent Updates
-
-**2025-08-13:**  
-- Fixed Wazuh agent registration issue by importing the correct key from the manager  
-- Verified dashboard connectivity  
-- Confirmed agent is actively reporting to the manager
-
----
-
-## 📜 Future Improvements
-
-- Integrate **Kibana dashboards** for visual log analysis  
-- Expand to monitor **network ports** and suspicious process execution  
-- Automate honeypot deployment with an installation script
-
----
-
-## 📁 Repository Structure
-
-
+## 📂 Project Structure
 honeypot-auditd-wazuh/
-│
-├── docs/
-│ ├── auditd_setup.md # Steps to install and configure auditd for bait file monitoring
-│ ├── telegram_notifications.md # How to set up real-time Telegram alerts
-│ ├── wazuh_custom_rule.md # Custom Wazuh rule for better alert visibility
-│
 ├── scripts/
-│ ├── telegram_alert.sh # Bash script for sending Telegram messages
-│
-├── README.md # Main project overview (this file)
+│ └── telegram_alert.sh # Sends alerts to Telegram
+├── README.md # Project documentation
 
 
 ---
 
-## 📖 Documentation
+## 🛠️ Installation & Setup
 
-- [Auditd Setup Guide](docs/auditd_setup.md)  
-- [Telegram Notifications Setup](docs/telegram_notifications.md)  
-- [Custom Wazuh Rule](docs/wazuh_custom_rule.md)  
+### **1️⃣  Clone this Repository**
 
----
+git clone https://github.com/mocybers/honeypot-auditd-wazuh.git
+cd honeypot-auditd-wazuh
 
-## 🖼️ Example Alert
+### **2️⃣  Create Telegram Bot & Get Chat ID**
+1. Go to Telegram, search for @BotFather and create a new bot.
 
-🚨 Bait file accessed on kali at Tue 05 Aug 2025 14:35:15 WAT!
+2. Save your Bot Token.
+
+3. Send a message to your bot.
+
+4. Use @userinfobot to get your Chat ID.
+
+
+### **3️⃣  Create the Telegram Alert Script**
+Create the folder and script:
+mkdir -p scripts
+nano scripts/telegram_alert.sh
+
+Paste this inside:
+#!/bin/bash
+MESSAGE="$1"
+TOKEN="$TELEGRAM_BOT_TOKEN"
+CHAT_ID="$TELEGRAM_CHAT_ID"
+
+if [ -z "$TOKEN" ] || [ -z "$CHAT_ID" ]; then
+  echo "[ERROR] TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set."
+  exit 1
+fi
+
+curl -s -X POST https://api.telegram.org/bot${TOKEN}/sendMessage \
+  -d chat_id="${CHAT_ID}" \
+  -d text="${MESSAGE}" \
+  -d parse_mode="Markdown" \
+  >/dev/null && echo "[INFO] Telegram alert sent successfully."
+
+Make it executable:
+chmod +x scripts/telegram_alert.sh
+
+### **4️⃣  Set Environment Variables**
+Add these to your ~/.bashrc (so they load on every login):
+export TELEGRAM_BOT_TOKEN="YOUR_BOT_TOKEN"
+export TELEGRAM_CHAT_ID="YOUR_CHAT_ID"
+
+Reload:
+source ~/.bashrc
+
+### **5️⃣  Configure Auditd to Monitor the Bait File**
+Create bait file:
+touch ~/.flag.txt
+
+Add an audit rule:```
+sudo auditctl -w $HOME/.flag.txt -p r -k baitfile ```
 
 
 
----
+### **6️⃣  Trigger Telegram Alerts via Audit Events**
+Create a dispatcher plugin at /etc/audit/plugins.d/telegram.conf:
+```
+active = yes
+direction = out
+path = /usr/local/bin/audisp-telegram
+type = always
+format = string ```
 
-## 📌 Disclaimer
+Then create /usr/local/bin/audisp-telegram:
+#!/bin/bash
+grep --line-buffered "baitfile" | while read -r line; do
+  ~/honeypot-auditd-wazuh/scripts/telegram_alert.sh "🚨 Bait file accessed on $(hostname) at $(date)"
+done
 
-This lab is intended for **educational and research purposes only**.  
-Do **not** deploy in a production environment without proper segmentation and controls.
+Make it executable:
+sudo chmod +x /usr/local/bin/audisp-telegram
 
----
+Restart auditd
+sudo systemctl restart auditd
 
-## 📚 References
+### **7️⃣  Wazuh Integration**
+⦁	Install the Wazuh agent on Kali Linux.
 
-- [auditd Manual](https://linux.die.net/man/8/auditd)  
-- [Wazuh Documentation](https://documentation.wazuh.com/)  
+⦁	Ensure /var/log/audit/audit.log is forwarded to the Wazuh manager.
 
+⦁	Create a custom Wazuh rule to trigger when baitfile events are detected.
+
+📜 Example Alert in Telegram
+🚨 Bait file accessed on kali at Fri 15 Aug 2025 17:15:24 WAT!
+
+🔒 Security Notes
+⦁	❌ Never hardcode your Telegram token or Chat ID in scripts committed to GitHub.
+
+⦁	✅ Use environment variables (.bashrc) instead
+
+⦁	🔄 If you accidentally commit a token, revoke it immediately via BotFather.
+
+📄 License
+This project is licensed under the MIT License.
+
+Author: mocybers
+GitHub Repo: https://github.com/mocybers/honeypot-auditd-wazuh
+
+📌 Disclaimer
+This lab is intended for educational and research purposes only.
+Do not deploy in a production environment without proper segmentation and controls.
